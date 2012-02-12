@@ -25,6 +25,7 @@
 @interface DemoAppDelegate : NSObject <UIApplicationDelegate, UIAlertViewDelegate>
 {
     UIImageView *splashView;
+    NSNetService *netService;
 }
 
 @property (nonatomic, retain) CouchDatabase *database;

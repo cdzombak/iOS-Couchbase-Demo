@@ -38,9 +38,13 @@
 //#define USE_REMOTE_SERVER @"http://localhost:5984/"
 
 
-@interface DemoAppDelegate ()
+@interface DemoAppDelegate () <NSNetServiceDelegate>
 - (void)showSplash;
 - (void)removeSplash;
+
+- (BOOL)publishServiceWithPort:(int)port;
+- (void)unpublishService;
+- (void)netService:(NSNetService *)sender didNotPublish:(NSDictionary *)errorDict;
 @end
 
 
@@ -108,6 +112,10 @@
         RootViewController* root = (RootViewController*)navigationController.topViewController;
         [root useDatabase: database];
         
+        NSLog(@"%@", server.URL);
+        
+        [self publishServiceWithPort:[server.URL.port intValue]];
+        
         [self removeSplash];
     }];
     return YES;
@@ -157,8 +165,46 @@
 	[navigationController release];
 	[window release];
     [database release];
+    [netService release];
 	[super dealloc];
 }
 
+#pragma mark - Bonjour / NSNetService
+
+- (BOOL)publishServiceWithPort:(int)port {
+    static NSString *serviceName = @"GrocerySync";
+    static NSString *serviceType = @"_grocerysync._tcp.";
+    
+ 	netService = [[NSNetService alloc] initWithDomain:@"" type:serviceType name:serviceName port:port];
+	if (netService == nil) {
+		return NO;
+    }
+    
+	[netService scheduleInRunLoop:[NSRunLoop currentRunLoop] forMode:NSRunLoopCommonModes];
+    
+	[netService setDelegate:self];
+    
+	[netService publish];
+    
+    return YES;
+}
+
+- (void)unpublishService {
+    if (netService) {
+		[netService stop];
+		[netService removeFromRunLoop:[NSRunLoop currentRunLoop] forMode:NSRunLoopCommonModes];
+		netService = nil;
+	}
+}
+
+#pragma mark NSNetServiceDelegate
+
+- (void)netService:(NSNetService *)sender didNotPublish:(NSDictionary *)errorDict {
+    if (sender != netService) {
+        return;
+    }
+    
+    [self unpublishService];
+}
 
 @end
